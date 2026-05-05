@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanban Card Generator</title>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --dark: #1e2328;
+      --surface: #fff;
+      --border: #e0e0e0;
+      --muted: #666;
+      --pending: #e65100;
+      --pending-bg: #fff3e0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    /* ===== SETUP SCREEN ===== */
+    #setup-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1e2328 0%, #2c3540 100%);
+    }
+
+    .setup-card {
+      background: white;
+      border-radius: 14px;
+      padding: 2.5rem;
+      max-width: 460px;
+      width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    }
+
+    .setup-logo {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .setup-card h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.35rem;
+      color: #1e2328;
+    }
+
+    .setup-card > p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.75rem;
+      line-height: 1.5;
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      color: #222;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.12);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0.25rem;
+      transition: background 0.2s, transform 0.1s;
+      letter-spacing: 0.01em;
+    }
+
+    .btn-primary:hover { background: #1557b0; }
+    .btn-primary:active { transform: scale(0.99); }
+
+    .setup-note {
+      margin-top: 1.25rem;
+      padding: 0.8rem 1rem;
+      background: #fff8e1;
+      border-left: 3px solid #f9a825;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #5d4037;
+      line-height: 1.5;
+    }
+
+    .setup-steps {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .setup-steps a { color: var(--primary); }
+
+    /* ===== APP ===== */
+    #app { display: none; }
+
+    .app-header {
+      background: var(--dark);
+      color: white;
+      padding: 0 1.25rem;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .app-header-title {
+      font-size: 1rem;
+      font-weight: 800;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-icon:hover { background: rgba(255,255,255,0.2); }
+
+    .btn-icon.danger {
+      background: rgba(229,57,53,0.8);
+    }
+    .btn-icon.danger:hover { background: #c62828; }
+
+    .btn-print {
+      background: #e65100;
+      font-weight: 700;
+    }
+    .btn-print:hover { background: #bf360c; }
+
+    .badge {
+      background: white;
+      color: var(--dark);
+      padding: 0.1rem 0.45rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      min-width: 1.4rem;
+      text-align: center;
+    }
+
+    /* ===== FILTER BAR ===== */
+    .filter-bar {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      position: sticky;
+      top: 54px;
+      z-index: 99;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-chip {
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      color: #555;
+    }
+    .filter-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+    .filter-chip.pending-chip { border-color: #ffcc80; color: var(--pending); }
+    .filter-chip.pending-chip.active { background: var(--pending); border-color: var(--pending); color: white; }
+
+    /* ===== CONTENT ===== */
+    .content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.25rem;
+    }
+
+    /* ===== GROUP SECTION ===== */
+    .group-section { margin-bottom: 2.25rem; }
+
+    .group-section.pending-section .group-header {
+      background: var(--pending-bg);
+      border: 1.5px solid #ffcc80;
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 1rem;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .group-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .group-name {
+      font-weight: 800;
+      font-size: 1rem;
+      flex: 1;
+      color: #1e2328;
+    }
+
+    .group-count {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      background: #efefef;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+    }
+
+    .group-btns {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .btn-xs {
+      padding: 0.25rem 0.6rem;
+      border: 1.5px solid var(--border);
+      background: white;
+      border-radius: 5px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #555;
+      transition: all 0.12s;
+    }
+    .btn-xs:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== CARDS GRID ===== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+    }
+
+    /* ===== SCREEN CARD ===== */
+    .k-card {
+      background: white;
+      border-radius: 9px;
+      border: 2px solid transparent;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: all 0.15s;
+      overflow: hidden;
+      user-select: none;
+    }
+    .k-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.14); transform: translateY(-1px); }
+    .k-card.selected { border-color: var(--primary); box-shadow: 0 3px 14px rgba(26,115,232,0.22); }
+
+    .k-card-top { height: 4px; width: 100%; }
+
+    .k-card-body { padding: 0.75rem 0.8rem; }
+
+    .k-card-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.4rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .k-card-name {
+      font-weight: 800;
+      font-size: 0.88rem;
+      line-height: 1.3;
+      flex: 1;
+      color: #1e2328;
+    }
+
+    .k-checkbox {
+      width: 17px;
+      height: 17px;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      transition: all 0.12s;
+      margin-top: 1px;
+    }
+    .k-card.selected .k-checkbox {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .k-part {
+      font-size: 0.7rem;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+
+    .k-meta {
+      font-size: 0.76rem;
+      color: #555;
+      line-height: 1.75;
+    }
+    .k-meta span { display: block; }
+
+    .k-card-footer {
+      margin-top: 0.55rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .k-dept-lbl {
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .k-rev { font-size: 0.68rem; color: #aaa; }
+
+    /* ===== STATES ===== */
+    .loading-state, .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #e8e8e8;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .pending-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--pending-bg);
+      color: var(--pending);
+      border: 1px solid #ffcc80;
+      border-radius: 5px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ===== PRINT AREA ===== */
+    #print-area { display: none; }
+
+    /* ===== PRINT STYLES ===== */
+    @media print {
+      body > *:not(#print-area) { display: none !important; }
+
+      #print-area {
+        display: block !important;
+        width: 100%;
+      }
+
+      @page {
+        size: letter;
+        margin: 0.4in;
+      }
+
+      .print-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.25in;
+        width: 100%;
+      }
+
+      .print-card {
+        border: 1.5px solid #333;
+        border-radius: 6px;
+        overflow: hidden;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        font-family: Arial, Helvetica, sans-serif;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        height: 3.4in;
+      }
+
+      .pc-header {
+        padding: 0.12in 0.18in;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .pc-header-dept {
+        font-size: 9.5pt;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .pc-header-part {
+        font-size: 8.5pt;
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        opacity: 0.92;
+      }
+
+      .pc-body {
+        flex: 1;
+        padding: 0.12in 0.18in 0.08in;
+        display: flex;
+        gap: 0.1in;
+        overflow: hidden;
+      }
+
+      .pc-info { flex: 1; min-width: 0; }
+
+      .pc-name {
+        font-size: 15pt;
+        font-weight: 900;
+        line-height: 1.15;
+        margin-bottom: 0.08in;
+        color: #111;
+        word-break: break-word;
+      }
+
+      .pc-detail {
+        font-size: 8.5pt;
+        color: #444;
+        line-height: 1.7;
+        margin-bottom: 0.03in;
+      }
+      .pc-detail strong { font-weight: 800; }
+
+      .pc-notes {
+        font-size: 7.5pt;
+        color: #666;
+        font-style: italic;
+        line-height: 1.4;
+        margin-bottom: 0.05in;
+        overflow: hidden;
+        max-height: 0.35in;
+      }
+
+      .pc-reorder {
+        display: flex;
+        gap: 0.08in;
+        margin-top: 0.07in;
+      }
+
+      .pc-reorder-box {
+        flex: 1;
+        border: 1.5px solid #bbb;
+        border-radius: 4px;
+        padding: 0.04in 0.06in;
+        text-align: center;
+      }
+      .pc-reorder-lbl {
+        font-size: 6.5pt;
+        text-transform: uppercase;
+        color: #888;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+      }
+      .pc-reorder-val {
+        font-size: 15pt;
+        font-weight: 900;
+        color: #111;
+        line-height: 1.1;
+      }
+
+      .pc-qr {
+        width: 0.95in;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.04in;
+      }
+      .pc-qr img {
+        width: 0.88in;
+        height: 0.88in;
+        display: block;
+      }
+      .pc-qr-lbl {
+        font-size: 6.5pt;
+        color: #888;
+        text-align: center;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .pc-footer {
+        border-top: 1px solid #ddd;
+        padding: 0.05in 0.18in;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 7pt;
+        color: #888;
+        flex-shrink: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">🏷️</div>
+    <h1>Kanban Card Generator</h1>
+    <p>Connect your Monday.com Kanban Inventory board to browse items and print physical kanban cards.</p>
+
+    <div class="form-group">
+      <label>Monday API Token</label>
+      <input type="password" id="inp-token" placeholder="eyJhbGciOiJIUzI1NiJ9..." autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label>Board ID</label>
+      <input type="text" id="inp-board" value="18405535701" />
+    </div>
+
+    <button class="btn-primary" onclick="saveSetup()">Connect &amp; Load Board →</button>
+
+    <div class="setup-note">
+      🔒 Your API token is saved only in this browser's local storage. It's sent directly to Monday.com and nowhere else.
+    </div>
+    <div class="setup-steps">
+      To get your API token: Monday.com → Profile photo → Administration → API → Copy personal token.
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+
+  <header class="app-header">
+    <div class="app-header-title">🏷️ Kanban Card Generator</div>
+    <div class="header-actions">
+      <label style="display:flex;align-items:center;gap:0.35rem;cursor:pointer;font-size:0.8rem;color:rgba(255,255,255,0.75)">
+        <input type="checkbox" id="cb-all" onchange="toggleAll(this.checked)" style="cursor:pointer">
+        Select All
+      </label>
+      <button class="btn-icon" onclick="refreshBoard()">↻ Refresh</button>
+      <button class="btn-icon" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn-icon btn-print" id="btn-print" onclick="printSelected()">
+        🖨 Print Cards <span class="badge" id="sel-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="filter-bar" id="filter-bar">
+    <button class="filter-chip active" onclick="setFilter('all', this)">All Items</button>
+    <button class="filter-chip pending-chip" onclick="setFilter('__pending__', this)">🆕 Pending Review</button>
+  </div>
+
+  <div class="content" id="content">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Connecting to Monday…</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== PRINT AREA (hidden, shown only at print time) ===== -->
+<div id="print-area">
+  <div class="print-grid" id="print-grid"></div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG & STATE
+   ========================================================= */
+const STORAGE_KEY    = 'kanban_gen_v1';
+const PENDING_GID    = 'group_mm1zwqfs'; // 🆕 Pending Review group ID
+const BOARD_ID       = '18405535701';
+
+const DEPT_COLORS = {
+  'adhesives':     '#d81b60',
+  'bits':          '#8e24aa',
+  'cleaning':      '#1e88e5',
+  'fasteners':     '#546e7a',
+  'finishing':     '#fb8c00',
+  'general':       '#43a047',
+  'hardware':      '#6d4c41',
+  'packaging':     '#00acc1',
+  'ppe':           '#e53935',
+  'sandpaper':     '#f4511e',
+  'screws & nails':'#757575',
+  'tape':          '#3949ab',
+  'test':          '#757575',
+};
+const DEFAULT_COLOR  = '#546e7a';
+const PENDING_COLOR  = '#e65100';
+
+let cfg       = {};
+let allItems  = [];
+let allGroups = [];
+let selected  = new Set();
+let filter    = 'all';
+let qrCache   = {}; // itemId → dataURL
+
+/* =========================================================
+   SETUP
+   ========================================================= */
+function saveSetup() {
+  const token   = document.getElementById('inp-token').value.trim();
+  const boardId = document.getElementById('inp-board').value.trim();
+  if (!token || !boardId) { alert('Both fields are required.'); return; }
+  cfg = { token, boardId };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadBoard();
+}
+
+function openSettings() {
+  document.getElementById('inp-token').value  = cfg.token   || '';
+  document.getElementById('inp-board').value  = cfg.boardId || '';
+  document.getElementById('app').style.display          = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+/* =========================================================
+   MONDAY API
+   ========================================================= */
+async function gql(query) {
+  const r = await fetch('https://api.monday.com/v2', {
+    method:  'POST',
+    headers: {
+      'Authorization': cfg.token,
+      'Content-Type':  'application/json',
+      'API-Version':   '2024-01'
+    },
+    body: JSON.stringify({ query })
+  });
+  const d = await r.json();
+  if (d.errors) throw new Error(d.errors[0].message);
+  return d.data;
+}
+
+/* =========================================================
+   LOAD BOARD
+   ========================================================= */
+async function loadBoard() {
+  showSpinner('Loading board…');
+  try {
+    const data = await gql(`
+      query {
+        boards(ids: [${cfg.boardId}]) {
+          groups { id title color }
+          items_page(limit: 500) {
+            items {
+              id name
+              group { id title }
+              column_values(ids: [
+                "text_mm1srpgw","dropdown_mm2135ss","dropdown_mm21f1nq",
+                "numeric_mm1sv01n","numeric_mm1sazhv","link_mm1s7h43",
+                "text_mm1zf63k","date_mm1z7y5y","long_text_mm1s1c1a","text_mm1zt545"
+              ]) { id value text }
+            }
+          }
+        }
+      }
+    `);
+    const board = data.boards[0];
+    allGroups   = board.groups;
+    allItems    = board.items_page.items.map(item => ({
+      ...item,
+      c: parseCols(item.column_values)
+    }));
+    buildFilterChips();
+    renderBoard();
+    preloadQrCodes();
+  } catch(e) {
+    document.getElementById('content').innerHTML =
+      `<div class="empty-state">❌ <strong>Error loading board</strong><br><small>${e.message}</small></div>`;
+  }
+}
+
+function parseCols(cvs) {
+  const c = {};
+  cvs.forEach(cv => {
+    switch(cv.id) {
+      case 'text_mm1srpgw':       c.part     = cv.text || ''; break;
+      case 'dropdown_mm2135ss':    c.dept     = cv.text || ''; break;
+      case 'dropdown_mm21f1nq':   c.location = cv.text || ''; break;
+      case 'numeric_mm1sv01n':    c.rop      = cv.text || ''; break;
+      case 'numeric_mm1sazhv':    c.roq      = cv.text || ''; break;
+      case 'link_mm1s7h43':
+        try { c.url = JSON.parse(cv.value)?.url || ''; } catch { c.url = ''; } break;
+      case 'text_mm1zf63k':       c.rev      = cv.text || ''; break;
+      case 'date_mm1z7y5y':       c.revDate  = cv.text || ''; break;
+      case 'long_text_mm1s1c1a':  c.notes    = cv.text || ''; break;
+      case 'text_mm1zt545':       c.image    = cv.text || ''; break;
+    }
+  });
+  return c;
+}
+
+/* =========================================================
+   QR CODE PRELOADING
+   ========================================================= */
+async function preloadQrCodes() {
+  for (const item of allItems) {
+    if (!item.c.url || qrCache[item.id]) continue;
+    qrCache[item.id] = await fetchQrDataUrl(item.c.url);
+  }
+}
+
+function fetchQrDataUrl(url) {
+  return new Promise(resolve => {
+    const src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=110x110&margin=4`;
+    const img  = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch { resolve(src); } // fallback to direct URL
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+/* =========================================================
+   FILTER CHIPS
+   ========================================================= */
+function buildFilterChips() {
+  const bar = document.getElementById('filter-bar');
+  // Remove previous group chips
+  bar.querySelectorAll('.g-chip').forEach(c => c.remove());
+  allGroups.forEach(g => {
+    if (g.id === PENDING_GID) return; // handled by static chip
+    const chip = document.createElement('button');
+    chip.className   = 'filter-chip g-chip';
+    chip.textContent = g.title;
+    chip.onclick     = function() { setFilter(g.id, this); };
+    bar.appendChild(chip);
+  });
+}
+
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderBoard();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function getColor(dept, groupId) {
+  if (groupId === PENDING_GID) return PENDING_COLOR;
+  return DEPT_COLORS[(dept || '').toLowerCase()] || DEFAULT_COLOR;
+}
+
+function renderBoard() {
+  const content = document.getElementById('content');
+
+  let groups = [];
+  if (filter === 'all') {
+    const pending = allGroups.find(g => g.id === PENDING_GID);
+    const rest    = allGroups.filter(g => g.id !== PENDING_GID);
+    groups = pending ? [pending, ...rest] : rest;
+  } else if (filter === '__pending__') {
+    const g = allGroups.find(g => g.id === PENDING_GID);
+    groups = g ? [g] : [];
+  } else {
+    const g = allGroups.find(g => g.id === filter);
+    groups = g ? [g] : [];
+  }
+
+  let html = '';
+
+  groups.forEach(group => {
+    const items = allItems.filter(i => i.group.id === group.id);
+    if (!items.length) return;
+    const isPending = group.id === PENDING_GID;
+    const color     = isPending ? PENDING_COLOR : (group.color || DEFAULT_COLOR);
+
+    html += `
+      <div class="group-section ${isPending ? 'pending-section' : ''}">
+        <div class="group-header">
+          <div class="group-dot" style="background:${color}"></div>
+          <div class="group-name">${h(group.title)}</div>
+          ${isPending ? `<span class="pending-badge">⚠ Needs Review</span>` : ''}
+          <div class="group-count">${items.length} items</div>
+          <div class="group-btns">
+            <button class="btn-xs" onclick="selectGroup('${group.id}',true)">Select All</button>
+            <button class="btn-xs" onclick="selectGroup('${group.id}',false)">Clear</button>
+          </div>
+        </div>
+        <div class="cards-grid">
+          ${items.map(item => cardHtml(item)).join('')}
+        </div>
+      </div>`;
+  });
+
+  if (!html) {
+    html = `<div class="empty-state">
+      📭 No items here yet.<br>
+      <small style="margin-top:0.5rem;display:block">Items submitted via your Monday form will appear in Pending Review.</small>
+    </div>`;
+  }
+
+  content.innerHTML = html;
+  updateCount();
+}
+
+function cardHtml(item) {
+  const c       = item.c;
+  const color   = getColor(c.dept, item.group.id);
+  const isSel   = selected.has(item.id);
+  const dept    = c.dept || (item.group.id === PENDING_GID ? 'Pending' : '');
+
+  return `
+    <div class="k-card${isSel ? ' selected' : ''}" onclick="toggleCard('${item.id}')" data-id="${item.id}">
+      <div class="k-card-top" style="background:${color}"></div>
+      <div class="k-card-body">
+        <div class="k-card-row1">
+          <div class="k-card-name">${h(item.name)}</div>
+          <div class="k-checkbox">${isSel ? '✓' : ''}</div>
+        </div>
+        ${c.image ? `<img src="${h(c.image)}" alt="" style="width:100%;height:80px;object-fit:contain;border-radius:4px;margin:4px 0;background:#f8f8f8;" onerror="this.style.display='none'">` : ''}
+        ${c.part ? `<div class="k-part">${h(c.part)}</div>` : ''}
+        ${c.notes ? `<div style="font-size:0.72rem;color:#666;margin:3px 0;line-height:1.35;max-height:2.7em;overflow:hidden;">${h(c.notes)}</div>` : ''}
+        <div class="k-meta">
+          ${c.location ? `<span>📍 ${h(c.location)}</span>` : ''}
+          ${c.rop      ? `<span>🔄 Reorder at ${h(c.rop)} → Order ${h(c.roq || '?')}</span>` : ''}
+          ${!c.location && !c.rop ? `<span style="color:#bbb;font-style:italic">Missing details</span>` : ''}
+        </div>
+        <div class="k-card-footer">
+          <span class="k-dept-lbl" style="color:${color}">${h(dept)}</span>
+          <span class="k-rev">${h(c.rev)} ${h(c.revDate ? '· '+c.revDate : '')}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+function toggleCard(id) {
+  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (el) {
+    el.classList.toggle('selected', selected.has(id));
+    const cb = el.querySelector('.k-checkbox');
+    if (cb) cb.textContent = selected.has(id) ? '✓' : '';
+  }
+  updateCount();
+}
+
+function toggleAll(checked) {
+  visibleItems().forEach(i => { if (checked) selected.add(i.id); else selected.delete(i.id); });
+  renderBoard();
+}
+
+function selectGroup(gid, on) {
+  allItems.filter(i => i.group.id === gid).forEach(i => { if (on) selected.add(i.id); else selected.delete(i.id); });
+  renderBoard();
+}
+
+function visibleItems() {
+  if (filter === 'all')        return allItems;
+  if (filter === '__pending__') return allItems.filter(i => i.group.id === PENDING_GID);
+  return allItems.filter(i => i.group.id === filter);
+}
+
+function updateCount() {
+  document.getElementById('sel-count').textContent = selected.size;
+}
+
+/* =========================================================
+   REFRESH
+   ========================================================= */
+function refreshBoard() {
+  selected.clear();
+  qrCache = {};
+  loadBoard();
+}
+
+/* =========================================================
+   PRINT
+   ========================================================= */
+async function printSelected() {
+  if (selected.size === 0) { alert('Select at least one card first.'); return; }
+
+  const btn = document.getElementById('btn-print');
+  btn.textContent = '⏳ Building cards…';
+
+  // Ensure QR codes are ready for selected items
+  for (const item of allItems) {
+    if (!selected.has(item.id)) continue;
+    if (item.c.url && !qrCache[item.id]) {
+      qrCache[item.id] = await fetchQrDataUrl(item.c.url);
+    }
+  }
+
+  const itemsToPrint = allItems.filter(i => selected.has(i.id));
+  document.getElementById('print-grid').innerHTML = itemsToPrint.map(printCard).join('');
+
+  btn.innerHTML = `🖨 Print Cards <span class="badge">${selected.size}</span>`;
+  setTimeout(() => window.print(), 150);
+}
+
+function printCard(item) {
+  const c     = item.c;
+  const color = DEPT_COLORS[(c.dept || '').toLowerCase()] || DEFAULT_COLOR;
+  const dept  = c.dept || 'Uncategorized';
+  const qr    = qrCache[item.id];
+
+  const qrHtml = qr
+    ? `<img src="${qr}" /><div class="pc-qr-lbl">Scan to order</div>`
+    : (c.url ? `<div style="font-size:6pt;color:#aaa;text-align:center">No QR available</div>` : '');
+
+  return `
+    <div class="print-card">
+      <div class="pc-header" style="background:${color}">
+        <span class="pc-header-dept">${h(dept)}</span>
+        <span class="pc-header-part">${h(c.part || '')}</span>
+      </div>
+      <div class="pc-body">
+        <div class="pc-info">
+          <div class="pc-name">${h(item.name)}</div>
+          ${c.image    ? `<img src="${h(c.image)}" alt="" style="max-width:100%;max-height:60pt;object-fit:contain;margin:4pt 0;display:block;" onerror="this.style.display='none'">` : ''}
+          ${c.location ? `<div class="pc-detail">📍 <strong>Location:</strong> ${h(c.location)}</div>` : ''}
+          ${c.notes    ? `<div class="pc-notes">${h(c.notes)}</div>` : ''}
+          <div class="pc-reorder">
+            <div class="pc-reorder-box">
+              <div class="pc-reorder-lbl">Reorder Point</div>
+              <div class="pc-reorder-val">${h(c.rop || '—')}</div>
+            </div>
+            <div class="pc-reorder-box">
+              <div class="pc-reorder-lbl">Order Qty</div>
+              <div class="pc-reorder-val">${h(c.roq || '—')}</div>
+            </div>
+          </div>
+        </div>
+        <div class="pc-qr">${qrHtml}</div>
+      </div>
+      <div class="pc-footer">
+        <span>${h(c.rev || '')}${c.revDate ? ' · ' + h(c.revDate) : ''}</span>
+        <span>Item ID: ${h(item.id)}</span>
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+function h(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function showSpinner(msg) {
+  document.getElementById('content').innerHTML =
+    `<div class="loading-state"><div class="spinner"></div><p>${msg}</p></div>`;
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(function init() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      cfg = JSON.parse(saved);
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('app').style.display          = 'block';
+      loadBoard();
+    }
+  } catch(e) { /* start fresh */ }
+})();
+</script>
+</body>
+</html>
